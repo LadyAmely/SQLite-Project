@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?><sqlb_project><db path="C:/Users/Amelia/OneDrive/Pulpit/techniczna/hajder/system rekomendacji leków.db" readonly="0" foreign_keys="1" case_sensitive_like="0" temp_store="0" wal_autocheckpoint="1000" synchronous="2"/><attached/><window><main_tabs open="structure browser pragmas query" current="0"/></window><tab_structure><column_width id="0" width="300"/><column_width id="1" width="0"/><column_width id="2" width="150"/><column_width id="3" width="3797"/><column_width id="4" width="0"/><expanded_item id="0" parent="1"/><expanded_item id="1" parent="1"/><expanded_item id="2" parent="1"/><expanded_item id="3" parent="1"/></tab_structure><tab_browse><current_table name="4,9:mainAllergies"/><default_encoding codec=""/><browse_table_settings><table schema="main" name="Allergies" show_row_id="0" encoding="" plot_x_axis="" unlock_view_pk="_rowid_"><sort/><column_widths><column index="1" value="109"/><column index="2" value="109"/><column index="3" value="142"/><column index="4" value="176"/></column_widths><filter_values/><conditional_formats/><row_id_formats/><display_formats/><hidden_columns/><plot_y_axes/><global_filter/></table></browse_table_settings></tab_browse><tab_sql><sql name="CREATE.sql">CREATE TABLE MedicationRecommendations (
+    RecommendationID INTEGER PRIMARY KEY AUTOINCREMENT,
+    PatientID INTEGER,
+    ConditionID INTEGER,
+    MedicationID INTEGER,
+    Recommendation TEXT,
+    Rationale TEXT,
+    FOREIGN KEY (PatientID) REFERENCES Patients(PatientID),
+    FOREIGN KEY (ConditionID) REFERENCES MedicalConditions(ConditionID),
+    FOREIGN KEY (MedicationID) REFERENCES Medications(MedicationID)
+);
+
+CREATE TABLE Allergies (
+    AllergyID INTEGER PRIMARY KEY AUTOINCREMENT,
+    PatientID INTEGER,
+    AllergyName TEXT,
+    Reaction TEXT,
+    FOREIGN KEY (PatientID) REFERENCES Patients(PatientID)
+);
+
+CREATE TABLE PatientConditions (
+    PatientConditionID INTEGER PRIMARY KEY AUTOINCREMENT,
+    PatientID INTEGER,
+    ConditionID INTEGER,
+    DiagnosisDate TEXT,
+    FOREIGN KEY (PatientID) REFERENCES Patients(PatientID),
+    FOREIGN KEY (ConditionID) REFERENCES MedicalConditions(ConditionID)
+);
+
+CREATE TABLE MedicalConditions (
+    ConditionID INTEGER PRIMARY KEY AUTOINCREMENT,
+    ConditionName TEXT,
+    Description TEXT
+);
+
+CREATE TABLE Prescriptions (
+    PrescriptionID INTEGER PRIMARY KEY AUTOINCREMENT,
+    PatientID INTEGER,
+    MedicationID INTEGER,
+    PrescriptionDate TEXT,
+    Dosage TEXT,
+    Frequency TEXT,
+    Duration TEXT,
+    FOREIGN KEY (PatientID) REFERENCES Patients(PatientID),
+    FOREIGN KEY (MedicationID) REFERENCES Medications(MedicationID)
+);
+
+CREATE TABLE Medications (
+    MedicationID INTEGER PRIMARY KEY AUTOINCREMENT,
+    MedicationName TEXT,
+    Description TEXT,
+    Manufacturer TEXT,
+    DosageForm TEXT,
+    Strength TEXT
+);
+
+CREATE TABLE Patients (
+    PatientID INTEGER PRIMARY KEY AUTOINCREMENT,
+    FirstName TEXT,
+    LastName TEXT,
+    DateOfBirth TEXT,
+    Gender TEXT,
+    Address TEXT,
+    PhoneNumber TEXT,
+    Email TEXT
+);
+
+CREATE TABLE Symptoms (
+    SymptomID INTEGER PRIMARY KEY AUTOINCREMENT,
+    SymptomName TEXT,
+    Description TEXT
+);
+
+CREATE TABLE PatientSymptoms (
+    PatientSymptomID INTEGER PRIMARY KEY AUTOINCREMENT,
+    PatientID INTEGER,
+    SymptomID INTEGER,
+    SymptomDate TEXT,
+    Severity TEXT,
+    Notes TEXT,
+    FOREIGN KEY (PatientID) REFERENCES Patients(PatientID),
+    FOREIGN KEY (SymptomID) REFERENCES Symptoms(SymptomID)
+);
+
+
+
+
+</sql><sql name="List of patients with their medical conditions, symptoms and drug recommendations.sql">SELECT p.FirstName, p.LastName, mc.ConditionName, s.SymptomName, m.MedicationName, mr.Recommendation
+FROM Patients p
+JOIN PatientConditions pc ON p.PatientID = pc.PatientID
+JOIN MedicalConditions mc ON pc.ConditionID = mc.ConditionID
+JOIN PatientSymptoms ps ON p.PatientID = ps.PatientID
+JOIN Symptoms s ON ps.SymptomID = s.SymptomID
+JOIN MedicationRecommendations mr ON p.PatientID = mr.PatientID AND pc.ConditionID = mr.ConditionID
+JOIN Medications m ON mr.MedicationID = m.MedicationID;
+
+</sql><sql name="patient_conditions_symptoms_info.sql">SELECT P.FirstName, P.LastName, COALESCE(MC.ConditionName, 'no data') AS ConditionOrSymptomName, COALESCE(PC.DiagnosisDate, 'no data') AS DateOrSeverity
+FROM Patients P
+LEFT JOIN PatientConditions PC ON P.PatientID = PC.PatientID
+LEFT JOIN MedicalConditions MC ON PC.ConditionID = MC.ConditionID
+
+UNION 
+
+SELECT P.FirstName, P.LastName, COALESCE(S.SymptomName, 'no data') AS ConditionOrSymptomName, COALESCE(PS.SymptomDate, 'no data') AS DateOrSeverity
+FROM Patients P
+LEFT JOIN PatientSymptoms PS ON P.PatientID = PS.PatientID
+LEFT JOIN Symptoms S ON PS.SymptomID = S.SymptomID
+
+ORDER BY LastName, FirstName;
+
+
+
+</sql><sql name="Patient_Diagnosis_Conditions.sql">SELECT p.FirstName, p.LastName, pc.DiagnosisDate, mc.ConditionName
+FROM Patients p
+INNER JOIN PatientConditions pc ON p.PatientID = pc.PatientID
+INNER JOIN MedicalConditions mc ON pc.ConditionID = mc.ConditionID
+UNION ALL
+SELECT p.FirstName, p.LastName, 'No Condition' AS ConditionName, 'No Date' AS DiagnosisDate
+FROM Patients p
+LEFT JOIN PatientConditions pc ON p.PatientID = pc.PatientID
+LEFT JOIN MedicalConditions mc ON pc.ConditionID = mc.ConditionID
+WHERE mc.ConditionID IS NULL
+ORDER BY p.LastName, p.FirstName;
+</sql><sql name="Patient Details with Conditions and Medications.sql">SELECT p.FirstName, p.LastName, mc.ConditionName, m.MedicationName
+FROM Patients p
+INNER JOIN PatientConditions pc ON p.PatientID = pc.PatientID
+INNER JOIN MedicalConditions mc ON pc.ConditionID = mc.ConditionID
+INNER JOIN Prescriptions pr ON p.PatientID = pr.PatientID
+INNER JOIN Medications m ON pr.MedicationID = m.MedicationID
+UNION ALL
+SELECT p.FirstName, p.LastName, 'no condition' AS ConditionName, 'no medication' AS MedicationName
+FROM Patients p
+LEFT JOIN PatientConditions pc ON p.PatientID = pc.PatientID
+LEFT JOIN MedicalConditions mc ON pc.ConditionID = mc.ConditionID
+LEFT JOIN Prescriptions pr ON p.PatientID = pr.PatientID
+LEFT JOIN Medications m ON pr.MedicationID = m.MedicationID
+ORDER BY p.FirstName, p.LastName;</sql><current_tab id="4"/></tab_sql></sqlb_project>
